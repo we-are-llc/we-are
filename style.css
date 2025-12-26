@@ -1,0 +1,110 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+
+body {
+  color: #222;
+  line-height: 1.8;
+  background: #ffffff;
+}
+
+.hero {
+  height: 100vh;
+  background: linear-gradient(120deg, #0f2027, #203a43, #2c5364);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+.hero-content {
+  text-align: center;
+  backdrop-filter: blur(4px);
+}
+
+.hero h1 {
+  font-size: 3rem;
+  letter-spacing: 0.1em;
+}
+
+.hero p {
+  margin-top: 1rem;
+  font-size: 1.2rem;
+  opacity: 0.85;
+}
+
+.section {
+  padding: 5rem 10%;
+}
+
+.section h2 {
+  font-size: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.section p {
+  max-width: 800px;
+}
+
+.bg-light {
+  background: #f7f9fb;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 2rem;
+}
+
+.card {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+  transition: transform 0.4s ease;
+}
+
+.card:hover {
+  transform: translateY(-8px);
+}
+
+.company-table {
+  width: 100%;
+  max-width: 700px;
+  border-collapse: collapse;
+}
+
+.company-table th,
+.company-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+}
+
+.company-table th {
+  width: 30%;
+  color: #555;
+}
+
+.footer {
+  text-align: center;
+  padding: 2rem;
+  background: #111;
+  color: #ccc;
+  font-size: 0.9rem;
+}
+
+/* Animation */
+.fade-in {
+  opacity: 0;
+  transform: translateY(40px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.fade-in.show {
+  opacity: 1;
+  transform: translateY(0);
+}
