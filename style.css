@@ -108,3 +108,37 @@ body {
   opacity: 1;
   transform: translateY(0);
 }
+/* 画像を柔軟に */
+img { max-width: 100%; height: auto; }
+
+/* 幅600px以下の端末向け調整 */
+@media (max-width: 600px) {
+  .hero {
+    height: auto;          /* 100vhだと小さすぎる/大きすぎることがある */
+    padding: 4rem 1rem;
+  }
+  .hero h1 { font-size: 2rem; }
+  .section {
+    padding: 3rem 5%;
+  }
+  .section h2 { font-size: 1.5rem; }
+
+  /* テーブルを縦積みに */
+  .company-table {
+    display: block;
+    overflow-x: auto;      /* 横スクロール */
+    white-space: nowrap;
+  }
+  .company-table tr {
+    display: block;
+  }
+  .company-table th,
+  .company-table td {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .company-table th {
+    background: #f7f7f7;
+  }
+}
