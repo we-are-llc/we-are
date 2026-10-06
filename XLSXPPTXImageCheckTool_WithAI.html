@@ -91,6 +91,21 @@ dl.meta dd{margin:0;word-break:break-all;white-space:pre-line}
 .metainfo li{word-break:break-all}
 .metainfo .warn{color:var(--office);font-weight:bold}
 .metainfo .none{color:var(--sub)}
+.aibar{display:flex;align-items:center;gap:8px;white-space:nowrap;font-size:14px;padding:4px 10px;border-radius:6px;background:#EEF0F3}
+.aibar.ai-flag{background:#FFF2DE;color:#8A4B00;font-weight:bold}
+.btn-ai{border:1px solid var(--ink);background:var(--white);border-radius:6px;padding:4px 10px;font-size:13px}
+.aiinfo{border-radius:6px;padding:10px;font-size:13px;background:#EEF0F3}
+.aiinfo.high{background:#FFE9C7;border:2px solid #D97706}
+.aiinfo.low{background:#FFF6E5}
+.aiinfo h4{margin:0 0 4px;font-size:14px}
+.aiinfo.high h4{color:#8A4B00}
+.aiinfo ul{margin:0 0 6px;padding-left:18px;font-size:14px}
+.aiinfo .ainote{color:var(--sub);font-size:12px}
+.thumb .aimark{position:absolute;right:2px;bottom:20px;font-size:10px;font-weight:bold;border-radius:3px;padding:0 3px;background:#5A6675;color:#fff}
+.thumb .aimark:empty{display:none}
+.thumb .aimark.high{background:#D97706}
+.thumb .aimark.low{background:#F2C14E;color:#3A2A00}
+.aistart{margin-top:8px;font-size:13px;color:var(--sub)}
 .officecheck{display:flex;gap:8px;align-items:flex-start;background:var(--office-bg);border-radius:6px;padding:10px;font-size:14px}
 .officecheck input{width:20px;height:20px;margin-top:2px;flex:none}
 .judge{display:grid;gap:8px}
@@ -151,7 +166,7 @@ dialog#logDlg::backdrop{background:rgba(20,28,38,.55)}
 <section id="start">
   <div class="start-box">
     <p class="org">ウィアー合同会社</p>
-    <h1>画像個人情報チェックツール</h1>無償公開版
+    <h1>画像個人情報チェックツールAI支援機能付</H1>無償公開版
     <p class="lead">PowerPoint・Excelの中の画像を1枚ずつ確認します。すべての画像を確認するまで完了になりません。</p>
     <label id="drop" for="fileInput" tabindex="0">
       <strong>ここにファイルをドロップ</strong>
@@ -161,6 +176,7 @@ dialog#logDlg::backdrop{background:rgba(20,28,38,.55)}
     </label>
     <p class="formats">対応形式：.pptx（PowerPoint）、.xlsx（Excel）。旧形式の .ppt／.xls は、PowerPoint／Excelで .pptx／.xlsx に保存し直してから読み込んでください。</p>
     <p class="notice">読み込んだファイルはこのパソコンのブラウザ内でだけ扱い、保存も送信もしません。このツールはインターネットに接続しません。</p>
+    <p class="aistart" id="aiStart">AIチェック：確認中…</p>
     <div id="startMsg" class="hidden" role="alert"></div>
   </div>
 </section>
@@ -169,6 +185,7 @@ dialog#logDlg::backdrop{background:rgba(20,28,38,.55)}
 <section id="review" class="hidden">
   <header class="bar">
     <div class="fname" id="fname"></div>
+    <div class="aibar" id="aiBar"></div>
     <div class="progress" title="確認済み枚数 / 全枚数">
       <span>確認済み</span><span class="num" id="progNum">0/0</span>
       <span class="track" aria-hidden="true"><i id="trOk" style="background:var(--ok)"></i><i id="trNg" style="background:var(--ng)"></i></span>
@@ -190,6 +207,7 @@ dialog#logDlg::backdrop{background:rgba(20,28,38,.55)}
         <dt>ファイル</dt><dd id="mName"></dd>
         <dt>大きさ</dt><dd id="mSize"></dd>
       </dl>
+      <div class="aiinfo hidden" id="aiInfo"></div>
       <button id="btnZoom">等倍で見る（Z）</button>
       <div class="status-now st-todo" id="statusNow">未確認</div>
       <div class="convnote hidden" id="convNote">
@@ -229,7 +247,6 @@ dialog#logDlg::backdrop{background:rgba(20,28,38,.55)}
     <label for="inPc">端末名</label><input id="inPc" autocomplete="off" placeholder="例：PC-1234（PCのラベルや「設定 → システム → バージョン情報」のデバイス名）">
   </div>
   <p class="hint">ブラウザからは端末名を自動で取得できないため、手入力してください。確認者名と端末名は、次回のために、このパソコンのブラウザ内にだけ記憶します。</p>
-
   <textarea id="logText" readonly spellcheck="false" aria-label="確認履歴のテキスト"></textarea>
   <div class="acts">
     <span id="copyMsg" role="status"></span>
@@ -281,7 +298,7 @@ else if (typeof exports === 'object')
 </script>
 <script>
 "use strict";
-const TOOL_VERSION = "0.3.2（プロトタイプ）";
+const TOOL_VERSION = "0.4.0（プロトタイプ）";
 /* 組み立て前のソースを直接開いた場合の案内 */
 window.addEventListener("DOMContentLoaded", () => {
   if (typeof JSZip === "undefined"){
@@ -821,6 +838,8 @@ function startReview(){
   $("total").textContent = S.images.length;
   buildThumbs(); render();
   $("stage").focus();
+  aiUpdate();
+  if (AI.state === "ready") aiRun(); // AIモデルが準備済みなら自動で開始
 }
 
 function buildThumbs(){
@@ -893,6 +912,7 @@ function render(){
     ? `${S.kind.app}で「アート効果」や色の調整をかける前の元画像です（ファイルの中に残っています）。ぼかし等で隠したつもりの情報が見えていないか確認してください。表示がおかしい場合は、ボタンを押して${S.kind.app}で確認してください。`
     : `${it.ext.toUpperCase()}形式を変換して表示しています。図の中の文字や写真は描画されないことがあるため、下の一覧で必ず確認してください。図の形がおかしい場合は、ボタンを押して${S.kind.app}で確認してください。`;
   renderMetaInfo(it);
+  renderAi(it);
   $("btnZoom").textContent = S.zoom === "fit" ? "等倍で見る（Z）" : "画像全体を見る（Z）";
   $("curNo").textContent = S.cur + 1;
   const u = $("mUsage"); u.textContent = usageText(it);
@@ -1015,6 +1035,173 @@ function updateProgress(){
   }
 }
 
+/* ---------- AIチェック（Chrome 内蔵の Gemini Nano）----------
+   画像はブラウザ内のモデルに渡すだけで、外部には送信されない。
+   AIの結果は「目印」であり、人の確認を置き換えない。 */
+const AI_OPTS = {
+  expectedInputs: [{ type:"text", languages:["ja","ja"] }, { type:"image" }],
+  expectedOutputs: [{ type:"text", languages:["ja"] }],
+};
+const AI_SYSTEM = `あなたは医療・介護分野の資料を外部に出す前に、個人情報が写っていないかを点検する担当者です。
+与えられた画像（画面キャプチャや写真の一部のこともあります）に、次のものが写っているかを判定してください。
+・人の氏名（漢字・ひらがな・カタカナ・ローマ字）
+・患者ID、カルテ番号、保険証番号、受付番号など個人を識別する番号
+・生年月日、年齢と組み合わさった個人の情報
+・住所、電話番号、メールアドレス
+・人の顔が分かる写真
+・病名、検査結果、処方などが特定の個人と結びついている情報
+・職員の氏名や職員番号
+サンプルやダミーらしく見えても、写っていれば報告してください。判断に迷う場合は risk を "low" にしてください。
+findings には、見つけたものを短い日本語で書いてください（例：「氏名らしき文字：山田太郎」「顔写真」）。何もなければ空の配列にしてください。`;
+const AI_SCHEMA = {
+  type:"object",
+  properties:{
+    risk:{ type:"string", enum:["high","low","none"] },
+    findings:{ type:"array", items:{ type:"string" }, maxItems:6 },
+  },
+  required:["risk","findings"],
+};
+const AI = { state:"init", base:null, abort:null, done:0, total:0, note:"" };
+
+// 利用できるかを調べる（ダウンロードは始めない）
+async function aiCheckAvailability(){
+  if (!("LanguageModel" in window)){
+    AI.state = "unsupported";
+    AI.note = navigator.userAgent.includes("Edg/") ? "Edgeでは使えません。Chrome（148以降）で開いてください。"
+            : "このブラウザ・この開き方では使えません（Chrome 148以降が必要です）。";
+    return AI.state;
+  }
+  try {
+    const a = await LanguageModel.availability(AI_OPTS);
+    AI.state = a === "available" ? "ready" : a === "unavailable" ? "unsupported" : "needDownload";
+    AI.note = a === "unavailable" ? "このPCでは使えません（PCの性能や空き容量が足りない可能性があります）。" : "";
+  } catch(e){ AI.state = "unsupported"; AI.note = `利用できません（${e.name}）。`; }
+  return AI.state;
+}
+
+// 画像を、AIが文字を読める大きさのタイルに分ける
+async function aiTiles(it){
+  const img = new Image(); img.src = it.url; await img.decode();
+  let W = img.naturalWidth, H = img.naturalHeight;
+  if (!W || !H) throw new Error("画像の大きさが分かりません");
+  let scale = Math.max(W, H) < 512 ? 512 / Math.max(W, H) : 1; // 小さな画像は拡大して読みやすくする
+  const T = 1024; let cols, rows;
+  for (;;){ cols = Math.ceil(W*scale / T); rows = Math.ceil(H*scale / T); if (cols * rows <= 6) break; scale *= 0.85; }
+  const tiles = [], ov = 0.08; // タイル同士を少し重ねて、境目の文字を切らない
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++){
+    const sw = W / cols, sh = H / rows;
+    const sx = Math.max(0, c*sw - sw*ov), sy = Math.max(0, r*sh - sh*ov);
+    const ew = Math.min(W - sx, sw*(1+2*ov)), eh = Math.min(H - sy, sh*(1+2*ov));
+    const cv = document.createElement("canvas");
+    cv.width = Math.max(1, Math.round(ew*scale)); cv.height = Math.max(1, Math.round(eh*scale));
+    const ctx = cv.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.drawImage(img, sx, sy, ew, eh, 0, 0, cv.width, cv.height);
+    tiles.push(cv);
+  }
+  return tiles;
+}
+
+async function aiCheckOne(it, signal){
+  const tiles = await aiTiles(it);
+  let risk = "none"; const findings = [];
+  const extra = it.meta?.texts?.length ? `\nこの図には次の文字も含まれています：\n${it.meta.texts.slice(0, 40).join("\n")}` : "";
+  for (const [k, cv] of tiles.entries()){
+    const s = await AI.base.clone({ signal });
+    try {
+      const where = tiles.length > 1 ? `（画像を${tiles.length}分割した${k+1}番目の部分です）` : "";
+      const out = await s.prompt([{ role:"user", content:[
+        { type:"text", value:`この画像に個人情報が写っているか判定してください${where}。${k === 0 ? extra : ""}` },
+        { type:"image", value:cv },
+      ]}], { responseConstraint:AI_SCHEMA, signal });
+      const j = JSON.parse(out);
+      if (j.risk === "high" || (j.risk === "low" && risk === "none")) risk = j.risk;
+      for (const f of j.findings || []) if (f && !findings.includes(f)) findings.push(f);
+    } finally { s.destroy(); }
+  }
+  if (risk === "none" && findings.length) risk = "low";
+  return { risk, findings };
+}
+
+// 全画像を順に判定する（利用者のボタン操作で開始）
+async function aiRun(){
+  if (AI.state === "running") return;
+  const files = S.images;
+  AI.abort = new AbortController(); const signal = AI.abort.signal;
+  try {
+    if (!AI.base){
+      AI.state = "preparing"; aiUpdate();
+      AI.base = await LanguageModel.create({ ...AI_OPTS, signal,
+        initialPrompts:[{ role:"system", content:AI_SYSTEM }],
+        monitor(m){ m.addEventListener("downloadprogress", e => { AI.note = `AIモデルを準備中… ${Math.round(e.loaded*100)}%`; aiUpdate(); }); } });
+    }
+    AI.state = "running";
+    const targets = files.filter(it => it.viewable && !it.ai);
+    AI.total = targets.length; AI.done = 0; aiUpdate();
+    for (const it of targets){
+      if (signal.aborted || S.images !== files) return;
+      it.ai = { status:"running" }; refreshThumb(it); if (it === S.images[S.cur]) renderAi(it);
+      const t0 = performance.now();
+      try { it.ai = { status:"done", ...(await aiCheckOne(it, signal)), ms: Math.round(performance.now() - t0) }; }
+      catch(e){ if (signal.aborted) return; it.ai = { status:"error", error: e.message || e.name }; }
+      AI.done++; refreshThumb(it); if (it === S.images[S.cur]) renderAi(it); aiUpdate();
+    }
+    AI.state = "finished"; aiUpdate();
+  } catch(e){
+    if (signal.aborted) return;
+    if (e.name === "NotAllowedError"){ AI.state = "needDownload"; AI.base = null; aiUpdate(); return; } // ボタン操作が必要
+    AI.state = "failed"; AI.note = `AIチェックを開始できませんでした（${e.name}: ${e.message}）`; aiUpdate();
+  }
+}
+function aiStop(){
+  if (AI.abort) AI.abort.abort();
+  if (AI.state === "running" || AI.state === "preparing" || AI.state === "finished") AI.state = AI.base ? "ready" : "needDownload";
+}
+
+// ヘッダーの表示
+function aiUpdate(){
+  const box = $("aiBar"); if (!box) return;
+  box.innerHTML = "";
+  const s = document.createElement("span"); s.className = "ai-state";
+  const btn = (label, fn) => { const b = document.createElement("button"); b.className = "btn-ai"; b.textContent = label; b.onclick = fn; box.append(s, b); };
+  const flagged = S.images.filter(x => x.ai?.risk === "high").length, low = S.images.filter(x => x.ai?.risk === "low").length;
+  switch (AI.state){
+    case "unsupported": s.textContent = "AIチェック：使えません"; s.title = AI.note; box.append(s); break;
+    case "needDownload": s.textContent = "AIチェック"; btn("AIモデルを準備して開始", aiRun); s.title = "初回だけ、Chromeが数GBのAIモデルをダウンロードします。画像は送信されません。"; break;
+    case "ready": s.textContent = "AIチェック"; btn("AIチェックを開始", aiRun); break;
+    case "preparing": s.textContent = AI.note || "AIを準備中…"; box.append(s); break;
+    case "running": s.textContent = `AIチェック中 ${AI.done}/${AI.total}` + (flagged ? `・注意 ${flagged}` : ""); box.append(s); break;
+    case "finished": s.textContent = `AIチェック完了：注意 ${flagged}・要確認 ${low}`; box.append(s); break;
+    case "failed": s.textContent = "AIチェック：失敗"; s.title = AI.note; box.append(s); break;
+    default: s.textContent = "AIチェック：確認中…"; box.append(s);
+  }
+  box.classList.toggle("ai-flag", flagged > 0);
+}
+
+// サムネイルの印
+function refreshThumb(it){
+  const i = S.images.indexOf(it); const b = $("thumbs").children[i]; if (!b) return;
+  let m = b.querySelector(".aimark"); if (!m){ m = document.createElement("span"); m.className = "aimark"; b.append(m); }
+  const a = it.ai;
+  m.className = "aimark" + (a?.risk === "high" ? " high" : a?.risk === "low" ? " low" : "");
+  m.textContent = !a ? "" : a.status === "running" ? "AI…" : a.status === "error" ? "AI×" : a.risk === "high" ? "AI注意" : a.risk === "low" ? "AI要確認" : "";
+}
+
+// 右側のAI結果
+function renderAi(it){
+  const box = $("aiInfo"); const a = it.ai;
+  if (!a || a.status === "skip"){ box.classList.add("hidden"); return; }
+  box.classList.remove("hidden"); box.className = "aiinfo" + (a.risk === "high" ? " high" : a.risk === "low" ? " low" : "");
+  box.innerHTML = "";
+  const h = document.createElement("h4");
+  h.textContent = a.status === "running" ? "AIが確認中です…" : a.status === "error" ? "AIの判定に失敗しました"
+    : a.risk === "high" ? "AI：個人情報が写っている可能性があります" : a.risk === "low" ? "AI：念のため確認してください" : "AI：見つかりませんでした";
+  box.append(h);
+  if (a.findings?.length){ const ul = document.createElement("ul"); a.findings.forEach(f => { const li = document.createElement("li"); li.textContent = f; ul.append(li); }); box.append(ul); }
+  if (a.status === "error"){ const d = document.createElement("div"); d.textContent = a.error; box.append(d); }
+  const n = document.createElement("div"); n.className = "ainote"; n.textContent = "AIの判定は参考です。見落とすこともあるので、必ず自分の目で確認してください。"; box.append(n);
+}
+const aiLabel = (a, it) => (it && !it.viewable) ? "対象外" : !a ? "未実施" : a.status === "error" ? "失敗" : a.status !== "done" ? "未完了" : a.risk === "high" ? "注意" : a.risk === "low" ? "要確認" : "検出なし";
+
 /* ---------- 確認履歴 ---------- */
 const pad = n => String(n).padStart(2, "0");
 const fmtDate = d => d ? `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}` : "";
@@ -1044,9 +1231,11 @@ function buildLog(){
   L.push(`最後に判定した日時\t${fmtDate(times[times.length-1])}`);
   L.push(`画像枚数\t${n} 枚（問題なし ${ok} 枚／問題あり ${ng} 枚）`);
   L.push(`結果\t${ng ? "問題あり（承認不可）" : "全画像 問題なし"}`);
+  const aiDone = S.images.filter(x => x.ai?.status === "done").length;
+  L.push(`AIチェック\t${aiDone ? `実施（${aiDone}/${S.images.length}枚、注意 ${S.images.filter(x => x.ai?.risk === "high").length} 枚・要確認 ${S.images.filter(x => x.ai?.risk === "low").length} 枚）※参考情報` : "未実施"}`);
   L.push(`ツール版数\t${TOOL_VERSION}`);
   L.push("");
-  L.push(["番号","判定","確認日時","使用箇所","画像ファイル","備考"].join("\t"));
+  L.push(["番号","判定","確認日時","使用箇所","画像ファイル","AI判定","AIの指摘","備考"].join("\t"));
   S.images.forEach((it, i) => {
     const parts = [];
     if (it.converted && it.viewable) parts.push(`${it.ext.toUpperCase()}を変換して表示` + (JXR.has(it.ext) ? "（効果をかける前の元画像）" : ""));
@@ -1056,7 +1245,7 @@ function buildLog(){
       + (it.forcedOffice ? "：変換表示不良" : it.convertError ? "：変換失敗" : it.meta?.unreadText ? "：読み取れない文字あり" : it.meta?.unreadImage ? "：取り出せない画像あり" : ""));
     const note = parts.join("／");
     L.push([i+1, it.state === "ok" ? "問題なし" : it.state === "ng" ? "問題あり" : "未確認",
-            fmtDate(it.checkedAt), usageText(it), it.name, note].join("\t"));
+            fmtDate(it.checkedAt), usageText(it), it.name, aiLabel(it.ai, it), (it.ai?.findings || []).join("・"), note].join("\t"));
   });
   return L.join("\r\n");
 }
@@ -1083,6 +1272,8 @@ function go(i){
 function judge(state){
   const it = S.images[S.cur];
   if (state === "ok" && it.needsOffice && !it.officeChecked){ $("officeChk").focus(); return; }
+  if (state === "ok" && it.state !== "ok" && it.ai?.risk === "high"
+      && !confirm(`AIが「個人情報が写っている可能性がある」と判定した画像です。\n${(it.ai.findings || []).join("\n")}\n\n確認したうえで「問題なし」にしますか？`)) return;
   it.state = it.state === state ? null : state; // 同じボタンをもう一度押すと未確認に戻す
   it.checkedAt = it.state ? new Date() : null;
   // 「問題なし」にしたら自動で次の画像へ。最後の画像なら、残っている未確認の画像へ
@@ -1099,6 +1290,7 @@ function nextTodo(){
 function closeFile(){
   const done = S.images.every(x => x.state);
   if (!done && !confirm("確認の途中です。別のファイルを開くと、この確認結果は消えます。よろしいですか？")) return;
+  aiStop();
   S.urls.forEach(u => URL.revokeObjectURL(u));
   Object.assign(S, { file:null, images:[], cur:0, zoom:"fit", urls:[] });
   $("review").classList.add("hidden"); $("start").classList.remove("hidden");
@@ -1106,6 +1298,11 @@ function closeFile(){
 }
 
 /* ---------- イベント ---------- */
+aiCheckAvailability().then(st => {
+  $("aiStart").textContent = st === "ready" ? "AIチェック：このPCで使えます（Chrome内蔵のAIを使います。画像は外部に送信されません）。"
+    : st === "needDownload" ? "AIチェック：使えます。初回だけ、Chromeが AIモデルをダウンロードします（画像は送信されません）。"
+    : `AIチェック：使えません。${AI.note} 目視の確認はこれまでどおり行えます。`;
+});
 const drop = $("drop");
 ["dragenter","dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
 ["dragleave","drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
