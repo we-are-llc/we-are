@@ -89,6 +89,10 @@ body {
   color: #555;
 }
 
+.company-table td:nth-child(2) {
+  width: 60%;
+}
+
 .footer {
   text-align: center;
   padding: 2rem;
